@@ -82,7 +82,7 @@ declare global {
       }
 
       /** Possible types of values found within table items. */
-      type ItemValueTypes = 'bytes' | 'code' | 'link' | 'ms' | 'node' | 'numeric' | 'text' | 'thumbnail' | 'timespanMs' | 'url';
+      type ItemValueTypes = 'bytes' | 'code' | 'link' | 'ms' | 'node' | 'ui-location' | 'numeric' | 'text' | 'thumbnail' | 'timespanMs' | 'url';
 
       // TODO(bckenny): unify Table/Opportunity headings and items on next breaking change.
 
@@ -104,7 +104,7 @@ declare global {
 
       export type TableItem = {
         debugData?: DebugData;
-        [p: string]: string | number | boolean | undefined | DebugData | NodeValue | LinkValue | UrlValue | CodeValue;
+        [p: string]: string | number | boolean | undefined | DebugData | NodeValue | UILocationValue | LinkValue | UrlValue | CodeValue;
       }
 
       export interface OpportunityColumnHeading {
@@ -165,6 +165,15 @@ declare global {
         snippet?: string;
         /** A human-friendly text descriptor that's used to identify the node more quickly. */
         nodeLabel?: string;
+      }
+
+      export interface UILocationValue {
+        type: 'ui-location';
+        url: string;
+        line: number;
+        column: number;
+        /** A snippet used to identify the code. */
+        snippet?: string;
       }
 
       /**

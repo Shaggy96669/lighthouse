@@ -214,6 +214,9 @@ class DetailsRenderer {
         case 'node': {
           return this.renderNode(value);
         }
+        case 'ui-location': {
+          return this.renderUILocation(value);
+        }
         case 'url': {
           return this.renderTextURL(value.value);
         }
@@ -373,6 +376,28 @@ class DetailsRenderer {
     if (item.path) element.setAttribute('data-path', item.path);
     if (item.selector) element.setAttribute('data-selector', item.selector);
     if (item.snippet) element.setAttribute('data-snippet', item.snippet);
+
+    return element;
+  }
+
+  /**
+   * @param {LH.Audit.Details.UILocationValue} item
+   * @return {Element}
+   * @protected
+   */
+  renderUILocation(item) {
+    const element = this._dom.createElement('span', 'lh-ui-location');
+    if (item.snippet) {
+      const snippetEl = this._dom.createElement('div');
+      snippetEl.classList.add('lh-ui-location__snippet');
+      snippetEl.textContent = item.snippet;
+      element.appendChild(snippetEl);
+    }
+    element.title = item.url;
+    element.setAttribute('data-url', item.url);
+    element.setAttribute('data-line', String(item.line));
+    element.setAttribute('data-column', String(item.column));
+    // if (item.snippet) element.setAttribute('data-snippet', item.snippet);
 
     return element;
   }

@@ -973,7 +973,8 @@
   font-size: large;
 }
 
-.lh-code {
+.lh-code,
+.lh-ui-location {
   white-space: normal;
   margin-top: 0;
   font-size: 85%;

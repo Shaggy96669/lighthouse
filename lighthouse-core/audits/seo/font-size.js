@@ -101,41 +101,13 @@ function getSelector(node) {
 }
 
 /**
- * @param {FailingNodeData['node']} node
- * @return {{type: 'node', selector: string, snippet: string}}
- */
-function nodeToTableNode(node) {
-  const attributes = node.attributes || [];
-  const attributesString = attributes.map((value, idx) =>
-    (idx % 2 === 0) ? ` ${value}` : `="${value}"`
-  ).join('');
-
-  return {
-    type: 'node',
-    selector: node.parentNode ? getSelector(node.parentNode) : '',
-    snippet: `<${node.localName}${attributesString}>`,
-  };
-}
-
-/**
  * @param {string} baseURL
  * @param {FailingNodeData['cssRule']} styleDeclaration
  * @param {FailingNodeData['node']} node
- * @returns {{source: string, selector: string | {type: 'node', selector: string, snippet: string}}}
+ * @returns {{source: string, selector: string | {type: 'ui-location', snippet: string, url: string, line: number, column: number}}}
  */
 function findStyleRuleSource(baseURL, styleDeclaration, node) {
-  if (
-    !styleDeclaration ||
-    styleDeclaration.type === 'Attributes' ||
-    styleDeclaration.type === 'Inline'
-  ) {
-    return {
-      selector: nodeToTableNode(node),
-      source: baseURL,
-    };
-  }
-
-  if (styleDeclaration.parentRule &&
+  if (styleDeclaration && styleDeclaration.parentRule &&
     styleDeclaration.parentRule.origin === 'user-agent') {
     return {
       selector: styleDeclaration.parentRule.selectors.map(item => item.text).join(', '),
@@ -143,37 +115,28 @@ function findStyleRuleSource(baseURL, styleDeclaration, node) {
     };
   }
 
-  if (styleDeclaration.type === 'Regular' && styleDeclaration.parentRule) {
-    const rule = styleDeclaration.parentRule;
-    const stylesheet = styleDeclaration.stylesheet;
+  if (styleDeclaration && styleDeclaration.range) {
+    const url = styleDeclaration.stylesheet ? styleDeclaration.stylesheet.sourceURL : '';
+    let {startLine, startColumn} = styleDeclaration.range ? styleDeclaration.range : {startLine: 0, startColumn: 0};
 
-    if (stylesheet) {
-      let source;
-      const selector = rule.selectors.map(item => item.text).join(', ');
-
-      if (stylesheet.sourceURL) {
-        const url = new URL(stylesheet.sourceURL, baseURL);
-        const range = styleDeclaration.range;
-        source = `${url.href}`;
-
-        if (range) {
-          // `stylesheet` can be either an external file (stylesheet.startLine will always be 0),
-          // or a <style> block (stylesheet.startLine will vary)
-          const absoluteStartLine = range.startLine + stylesheet.startLine + 1;
-          const absoluteStartColumn = range.startColumn + stylesheet.startColumn + 1;
-
-          source += `:${absoluteStartLine}:${absoluteStartColumn}`;
-        }
-      } else {
-        // dynamically injected to page
-        source = 'dynamic';
-      }
-
-      return {
-        selector,
-        source,
-      };
+    // Inline elements need to add the startLine/startColumn of the <script> element to the ui location.
+    // If an inline stylesheet has a sourceURL magic comment, `hasSourceURL` is true and thus we'll be linking directly to that ui location.
+    if (styleDeclaration.stylesheet && styleDeclaration.stylesheet.isInline && !styleDeclaration.stylesheet.hasSourceURL) {
+      startLine += styleDeclaration.stylesheet.startLine;
+      startColumn += styleDeclaration.stylesheet.startColumn;
     }
+
+    let selector = '';
+    if (styleDeclaration.parentRule) {
+      const rule = styleDeclaration.parentRule;
+      selector = rule.selectors.map(item => item.text).join(', ');
+    }
+
+    const snippet = `${selector} (line: ${startLine}, column: ${startColumn})`;
+    return {
+      selector: {type: 'ui-location', snippet, url, line: startLine, column: startColumn},
+      source: url,
+    };
   }
 
   return {
@@ -255,7 +218,7 @@ class FontSize extends Audit {
     /** @type {LH.Audit.Details.Table['headings']} */
     const headings = [
       {key: 'source', itemType: 'url', text: 'Source'},
-      {key: 'selector', itemType: 'code', text: 'Selector'},
+      {key: 'selector', itemType: 'ui-location', text: 'Selector'},
       {key: 'coverage', itemType: 'text', text: '% of Page Text'},
       {key: 'fontSize', itemType: 'text', text: 'Font Size'},
     ];
@@ -274,26 +237,26 @@ class FontSize extends Audit {
       });
 
     // all failing nodes that were not fully analyzed will be displayed in a single row
-    if (analyzedFailingTextLength < failingTextLength) {
-      const percentageOfUnanalyzedFailingText =
-        (failingTextLength - analyzedFailingTextLength) / visitedTextLength * 100;
+    // if (analyzedFailingTextLength < failingTextLength) {
+    //   const percentageOfUnanalyzedFailingText =
+    //     (failingTextLength - analyzedFailingTextLength) / visitedTextLength * 100;
 
-      tableData.push({
-        source: 'Add\'l illegible text',
-        selector: '',
-        coverage: `${percentageOfUnanalyzedFailingText.toFixed(2)}%`,
-        fontSize: '< 12px',
-      });
-    }
+    //   tableData.push({
+    //     source: 'Add\'l illegible text',
+    //     selector: '',
+    //     coverage: `${percentageOfUnanalyzedFailingText.toFixed(2)}%`,
+    //     fontSize: '< 12px',
+    //   });
+    // }
 
-    if (percentageOfPassingText > 0) {
-      tableData.push({
-        source: 'Legible text',
-        selector: '',
-        coverage: `${percentageOfPassingText.toFixed(2)}%`,
-        fontSize: '≥ 12px',
-      });
-    }
+    // if (percentageOfPassingText > 0) {
+    //   tableData.push({
+    //     source: 'Legible text',
+    //     selector: '',
+    //     coverage: `${percentageOfPassingText.toFixed(2)}%`,
+    //     fontSize: '≥ 12px',
+    //   });
+    // }
 
     const decimalProportion = (percentageOfPassingText / 100);
     const displayValue = str_(UIStrings.displayValue, {decimalProportion});
